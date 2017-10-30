@@ -1,0 +1,13 @@
+[Unit]
+Description=Starts the zstack server
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=60
+ExecStart=/opt/zstack/servers/zigbeeHAgw bbb
+WorkingDirectory=/opt/zstack/servers/
+
+[Install]
+WantedBy=multi-user.target
+

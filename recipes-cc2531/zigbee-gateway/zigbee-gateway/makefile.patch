@@ -1,0 +1,124 @@
+Index: 0.1-r0/zigbee-gateway/Source/scripts/package_builder_bbb
+===================================================================
+--- 0.1-r0.orig/zigbee-gateway/Source/scripts/package_builder_bbb
++++ 0.1-r0/zigbee-gateway/Source/scripts/package_builder_bbb
+@@ -16,8 +16,9 @@
+ 	export COMPLETE_PACKAGE_AS_DIRECTORY="TRUE"
+ 	#export COMPLETE_PACKAGE_AS_TAR="TRUE"
+ #Target platform:
+-	export TARGET_PLATFORM="BEAGLEBONE_BLACK"
++	#export TARGET_PLATFORM="BEAGLEBONE_BLACK"
+ 	#export TARGET_PLATFORM="x86"
++        export TARGET_PLATFORM="CROSS_COMPILE"
+ 
+ #Version
+ 	export VERSION="101"
+@@ -90,6 +91,10 @@ elif [ $TARGET_PLATFORM == "x86" ]; then
+ 	export COMPILER=gcc
+ 	export BUILD_TYPE=arch-all-x86
+ 	export PLATFORM_SUBSTRING=x86
++elif [ $TARGET_PLATFORM == "CROSS_COMPILE" ]; then
++        export COMPILER=arm-poky-linux-gnueabi-gcc
++        export BUILD_TYPE=arch-all-arm
++        export PLATFORM_SUBSTRING=arm
+ else
+ 	echo --- $TARGET_PLATFORM
+ 	echo "ERROR: Target platform not set correctly. Please set TARGET_PLATFORM to either BEAGLEBONE_BLACK or x86"
+@@ -204,7 +209,8 @@ else
+ 	cd $NPI_SOURCE/Projects/tools/LinuxHost
+ 	make clean
+ 	make create_output
+-	make arch-all-armBeagleBone CC_armBeagleBone=$COMPILER |& tee -a $MAKE_LOG_FILE
++	#make arch-all-armBeagleBone CC_armBeagleBone=$COMPILER |& tee -a $MAKE_LOG_FILE
++        make $BUILD_TYPE |& tee -a $MAKE_LOG_FILE
+ 
+ 	cd $GATEWAY/Projects/zstack/linux/zstackserverznp/
+ 	make clean
+Index: 0.1-r0/zigbee-gateway/Source/Projects/tools/LinuxHost/makefile
+===================================================================
+--- 0.1-r0.orig/zigbee-gateway/Source/Projects/tools/LinuxHost/makefile
++++ 0.1-r0/zigbee-gateway/Source/Projects/tools/LinuxHost/makefile
+@@ -28,6 +28,7 @@ CC_armBeagleBone = arm-linux-gnueabihf-g
+ # arm-linux-gnueabihf-gcc is for Ubuntu on BeagleBone Black
+ # get it here: eewiki.net/display/linuxonarm/BeagleBone+Black#BeagleBoneBlack-ARMCrossCompiler:GCC
+ CC_x86 = gcc
++CC_CROSS = arm-poky-linux-gnueabi-gcc
+ 
+ #predefine
+ #DEFINES = -DRNP_HOST -D__BIG_DEBUG__
+@@ -39,6 +40,7 @@ DEFINES = -DMRDY_EARLY_FIX -DRNP_HOST -D
+ COMPILO_FLAGS_x86 = "-Wall  $(INCLUDES) $(DEFINES)" 
+ COMPILO_FLAGS_armBeagleBoard = "-Wall  $(INCLUDES) $(DEFINES) -mcpu=cortex-a8 -march=armv7-a"
+ COMPILO_FLAGS_armBeagleBone = "-Wall  $(INCLUDES) $(DEFINES) -mcpu=cortex-a8 -march=armv7-a"
++CROSS_COMPILO_FLAGS = "-Wall  $(INCLUDES) $(DEFINES) $(CFLAGS)"
+ 
+ #list of object file to compile for the server
+ SERVER_OBJS= \
+@@ -54,7 +56,7 @@ SERVER_OBJS= \
+ #by default, do not use the library.
+ #PROJ_OBJS=$(SERVER_OBJS)
+ 
+-.PHONY: all clean lib create_output arch-all-x86 arch-all-armBeagleBoard arch-all-armBeagleBone exec_all_x86 exec_all_armBeagleBoard exec_all_armBeagleBone arch-all-x86 clean_obj clean_obj2 
++.PHONY: all clean lib create_output arch-all-x86 arch-all-armBeagleBoard arch-all-arm arch-all-armBeagleBone exec_all_x86 exec_all_armBeagleBoard exec_all_armBeagleBone arch-all-x86 clean_obj clean_obj2 
+ 
+ all: \
+ 	create_output \
+@@ -88,6 +90,15 @@ arch-all-armBeagleBone:
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep -v /usr/ >actual_specific_project_file_list.txt; fi
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep /usr/ >actual_standard_project_file_list.txt; fi
+ 
++
++arch-all-arm: 
++	@echo "********************************************************" 
++	@echo "COMPILING SERVER FOR CROSS COMPILE ARM BEAGLE BONE" 
++	@$(MAKE) COMPILO=$(CC_CROSS) COMPILO_FLAGS=$(CROSS_COMPILO_FLAGS) exec_all_armBeagleBone
++	@if [ -n "$(EXTRACT_FILES)" ]; then echo $(MAKEFILE_LIST) | $(EXTRACT_FILES) >> project_file_list.txt; fi
++	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep -v /usr/ >actual_specific_project_file_list.txt; fi
++	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep /usr/ >actual_standard_project_file_list.txt; fi 
++
+ arch-all-aragoBeagleBone: 
+ 	@echo "********************************************************" 
+ 	@echo "COMPILING SERVER FOR ARM BEAGLE BONE" 
+@@ -97,6 +108,7 @@ arch-all-aragoBeagleBone:
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep /usr/ >actual_standard_project_file_list.txt; fi
+ 
+ 
++
+ exec_all_x86: $(OBJS)/NPI_lnx_x86_server
+ 
+ exec_all_armBeagleBoard: $(OBJS)/NPI_lnx_armBeagleBoard_server
+Index: 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/zstackserverznp/Makefile
+===================================================================
+--- 0.1-r0.orig/zigbee-gateway/Source/Projects/zstack/linux/zstackserverznp/Makefile
++++ 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/zstackserverznp/Makefile
+@@ -26,7 +26,7 @@ PROTOC_LIB_PATH = -L$(PROTOLIB)
+ 
+ # Compilation tools - make sure to change the directory if its not called ti-sdk-am... 
+ ARM_LIB_PATH = -L$(TCLIB)
+-CC_arm = arm-linux-gnueabihf-gcc
++CC_arm = arm-poky-linux-gnueabi-gcc
+ CC_armArago = arm-arago-linux-gnueabi-gcc
+ CC_x86 = gcc
+ CC_arago = arm-arago-linux-gnueabi-gcc
+@@ -71,7 +71,7 @@ DEFINES = -DLINUX_ZNP -DZDO_COORDINATOR
+ 
+ # Compilation Option
+ COMPILO_FLAGS_x86 = "-O0 -g3 -Wall $(INCLUDES) $(DEFINES) -include ../hal/hal_types.h -include f8wConfig.h" 
+-COMPILO_FLAGS_arm = "-O0 -g3 -Wall -Wno-unused-but-set-variable $(INCLUDES) $(DEFINES) -include ../hal/hal_types.h -include f8wConfig.h -mcpu=cortex-a8 -march=armv7-a -I $(PROTOC_INC_DIR)"
++COMPILO_FLAGS_arm = "-O0 -g3 -Wall -Wno-unused-but-set-variable $(INCLUDES) $(DEFINES) -include ../hal/hal_types.h -include f8wConfig.h $(CFLAGS) -I $(PROTOC_INC_DIR)"
+ 
+ # List of object file to compile
+ APP_OBJS= \
+Index: 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/otaserver/Makefile
+===================================================================
+--- 0.1-r0.orig/zigbee-gateway/Source/Projects/zstack/linux/otaserver/Makefile
++++ 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/otaserver/Makefile
+@@ -26,7 +26,7 @@ PROTOC_LIB_PATH = -L$(PROTOLIB)
+ 
+ # Compilation tools - make sure to change the directory if its not called ti-sdk-am... 
+ ARM_LIB_PATH = -L$(TCLIB)
+-CC_arm = arm-linux-gnueabihf-gcc
++CC_arm = arm-poky-linux-gnueabi-gcc
+ CC_arago = arm-arago-linux-gnueabi-gcc
+ CC_x86 = gcc
+ 

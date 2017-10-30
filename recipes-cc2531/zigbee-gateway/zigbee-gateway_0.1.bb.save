@@ -1,0 +1,40 @@
+SUMMARY = "z-stack gateway package"
+LICENSE = "EULA"
+#LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
+LIC_FILES_CHKSUM = "file://zigbee-gateway/EULA.txt;md5=7c2d5ea0952f712724a4e7e8e546d101"
+
+SRC_URI = "file://Z-Stack_Linux_Gateway-1_0_1-src-linux-installer.run \
+           file://makefile.patch \
+"
+
+DEPENDS = "protobuf-c \
+           protobuf \
+"
+
+S = "${WORKDIR}"
+TCLIB = "${WORKDIR}/TCLIB"
+
+addtask extract after do_unpack before do_patch
+
+do_extract() {
+        ${S}/Z-Stack_Linux_Gateway-1_0_1-src-linux-installer.run --mode unattended \
+                --prefix ${S}/${PN}
+}
+
+do_compile() {
+        export TCLIB="${TCLIB}"
+	mkdir "${TCLIB}"
+
+        #CC=arm-poky-linux-gnueabi-gcc
+        #LD=arm-poky-linux-gnueabi-ld
+        #CFLAGS=”${CFLAGS} --sysroot=${S}/recipe-sysroot”
+        #CXXFLAGS=”${CXXFLAGS} --sysroot=${S}/recipe-sysroot”
+
+        cd ${S}/${PN}/Source
+	${S}/${PN}/Source/build_all
+}
+
+do_install() {
+
+}
+
