@@ -2,7 +2,7 @@ SUMMARY = "z-stack gateway package"
 LICENSE = "commercial"
 LIC_FILES_CHKSUM = "file://zigbee-gateway/EULA.txt;md5=7c2d5ea0952f712724a4e7e8e546d101"
 SRC_URI = "file://Z-Stack_Linux_Gateway-1_0_1-src-linux-installer.run \
-	file://makefile2.patch \
+	file://makefile.patch \
 	file://zstack.service \
 "
 TARGET_CC_ARCH += "${LDFLAGS}"

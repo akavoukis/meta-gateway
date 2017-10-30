@@ -1,3 +1,70 @@
+Index: 0.1-r0/zigbee-gateway/Source/Projects/tools/LinuxHost/makefile
+===================================================================
+--- 0.1-r0.orig/zigbee-gateway/Source/Projects/tools/LinuxHost/makefile
++++ 0.1-r0/zigbee-gateway/Source/Projects/tools/LinuxHost/makefile
+@@ -1,6 +1,5 @@
+ # Makefile for NPI Server
+ 
+-
+ #Compilation output
+ OBJS = out
+ 
+@@ -39,6 +38,7 @@ DEFINES = -DMRDY_EARLY_FIX -DRNP_HOST -D
+ COMPILO_FLAGS_x86 = "-Wall  $(INCLUDES) $(DEFINES)" 
+ COMPILO_FLAGS_armBeagleBoard = "-Wall  $(INCLUDES) $(DEFINES) -mcpu=cortex-a8 -march=armv7-a"
+ COMPILO_FLAGS_armBeagleBone = "-Wall  $(INCLUDES) $(DEFINES) -mcpu=cortex-a8 -march=armv7-a"
++COMPILO_FLAGS_CROSS = "$(INCLUDES) $(DEFINES) $(CFLAGS)"
+ 
+ #list of object file to compile for the server
+ SERVER_OBJS= \
+@@ -54,7 +54,7 @@ SERVER_OBJS= \
+ #by default, do not use the library.
+ #PROJ_OBJS=$(SERVER_OBJS)
+ 
+-.PHONY: all clean lib create_output arch-all-x86 arch-all-armBeagleBoard arch-all-armBeagleBone exec_all_x86 exec_all_armBeagleBoard exec_all_armBeagleBone arch-all-x86 clean_obj clean_obj2 
++.PHONY: all clean lib create_output arch-all-cross arch-all-x86 arch-all-armBeagleBoard arch-all-armBeagleBone exec_all_x86 exec_all_armBeagleBoard exec_all_armBeagleBone exec_all_cross arch-all-x86 clean_obj clean_obj2 
+ 
+ all: \
+ 	create_output \
+@@ -96,6 +96,13 @@ arch-all-aragoBeagleBone:
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep -v /usr/ >actual_specific_project_file_list.txt; fi
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep /usr/ >actual_standard_project_file_list.txt; fi
+ 
++arch-all-cross:
++	@echo "********************************************************"
++	@echo "COMPILING Projects/tools/LinuxHost/makefile with cross compilation flags test"
++	@$(MAKE) COMPILO="$(CC)" COMPILO_FLAGS=$(COMPILO_FLAGS_CROSS) exec_all_cross
++	@if [ -n "$(EXTRACT_FILES)" ]; then echo $(MAKEFILE_LIST) | $(EXTRACT_FILES) >> project_file_list.txt; fi
++	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep -v /usr/ >actual_specific_project_file_list.txt; fi
++	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep /usr/ >actual_standard_project_file_list.txt; fi
+ 
+ exec_all_x86: $(OBJS)/NPI_lnx_x86_server
+ 
+@@ -103,6 +110,8 @@ exec_all_armBeagleBoard: $(OBJS)/NPI_lnx
+ 
+ exec_all_armBeagleBone: $(OBJS)/NPI_lnx_armBeagleBone_server
+ 
++exec_all_cross: $(OBJS)/NPI_lnx_crossBeagleBone_server
++
+ clean_obj:
+ 	@echo "********************************************************" 
+ 	@echo "Cleaning Existing object" 
+@@ -128,9 +137,14 @@ clean:
+ 
+ $(OBJS)/NPI_lnx_armBeagleBoard_server: $(SERVER_OBJS)
+ 	@echo "Building target" $@ "..."
+-	@$(COMPILO) -o $@ $(SERVER_OBJS) $(LIBS_armBeagleBoard)
++	@"$(COMPILO)" -o $@ $(SERVER_OBJS) $(LIBS_armBeagleBoard)
+ 	@echo "********************************************************" 
+ 
++$(OBJS)/NPI_lnx_crossBeagleBone_server: $(SERVER_OBJS)
++	@echo "Building target" $@ "..."
++	@$(COMPILO) -o $@ $(SERVER_OBJS) $(LIBS_armBeagleBoard)
++	@echo "********************************************************"
++
+ $(OBJS)/NPI_lnx_armBeagleBone_server: $(SERVER_OBJS)
+ 	@echo "Building target" $@ "..."
+ 	@$(COMPILO) -o $@ $(SERVER_OBJS) $(LIBS_armBeagleBone)
 Index: 0.1-r0/zigbee-gateway/Source/scripts/package_builder_bbb
 ===================================================================
 --- 0.1-r0.orig/zigbee-gateway/Source/scripts/package_builder_bbb
@@ -13,112 +80,491 @@ Index: 0.1-r0/zigbee-gateway/Source/scripts/package_builder_bbb
  
  #Version
  	export VERSION="101"
-@@ -90,6 +91,10 @@ elif [ $TARGET_PLATFORM == "x86" ]; then
+@@ -90,6 +91,9 @@ elif [ $TARGET_PLATFORM == "x86" ]; then
  	export COMPILER=gcc
  	export BUILD_TYPE=arch-all-x86
  	export PLATFORM_SUBSTRING=x86
 +elif [ $TARGET_PLATFORM == "CROSS_COMPILE" ]; then
-+        export COMPILER=arm-poky-linux-gnueabi-gcc
-+        export BUILD_TYPE=arch-all-arm
++        export BUILD_TYPE=arch-all-cross
 +        export PLATFORM_SUBSTRING=arm
  else
  	echo --- $TARGET_PLATFORM
  	echo "ERROR: Target platform not set correctly. Please set TARGET_PLATFORM to either BEAGLEBONE_BLACK or x86"
-@@ -204,7 +209,8 @@ else
+@@ -204,7 +208,7 @@ else
  	cd $NPI_SOURCE/Projects/tools/LinuxHost
  	make clean
  	make create_output
 -	make arch-all-armBeagleBone CC_armBeagleBone=$COMPILER |& tee -a $MAKE_LOG_FILE
-+	#make arch-all-armBeagleBone CC_armBeagleBone=$COMPILER |& tee -a $MAKE_LOG_FILE
-+        make $BUILD_TYPE |& tee -a $MAKE_LOG_FILE
++	make $BUILD_TYPE CC_armBeagleBone=$COMPILER |& tee -a $MAKE_LOG_FILE
  
  	cd $GATEWAY/Projects/zstack/linux/zstackserverznp/
  	make clean
-Index: 0.1-r0/zigbee-gateway/Source/Projects/tools/LinuxHost/makefile
+@@ -228,25 +232,25 @@ else
+ 
+ 	cd $GATEWAY/Projects/zstack/linux/demo/project
+ 	make clean
+-	make CC=$COMPILER |& tee -a $MAKE_LOG_FILE
++	make |& tee -a $MAKE_LOG_FILE
+ 
+ 	cd $GATEWAY/Projects/zstack/linux/sbl_tool/project
+ 	make clean
+-	make CC=$COMPILER |& tee -a $MAKE_LOG_FILE
++	make |& tee -a $MAKE_LOG_FILE
+ 
+ 	cd $GATEWAY/Projects/zstack/linux/version_query_minitool/project
+ 	make clean
+-	make CC=$COMPILER |& tee -a $MAKE_LOG_FILE
++	make |& tee -a $MAKE_LOG_FILE
+ 
+ 	cd $GATEWAY/Projects/zstack/linux/bbb_usbreset/project
+ 	make clean
+-	make CC=$COMPILER |& tee -a $MAKE_LOG_FILE
++	make |& tee -a $MAKE_LOG_FILE
+ 
+ fi
+ 
+ # *** Copy resources ***********************************************************************************
+ 
+-cp $NPI_SOURCE/Projects/tools/LinuxHost/out/NPI_lnx_armBeagleBone_server $BINARIES_SERVERS_DIR/NPI_lnx_${PLATFORM_SUBSTRING}_server
++cp $NPI_SOURCE/Projects/tools/LinuxHost/out/NPI_lnx_crossBeagleBone_server $BINARIES_SERVERS_DIR/NPI_lnx_${PLATFORM_SUBSTRING}_server
+ cp $GATEWAY/Projects/zstack/linux/collateral/gateway/config/NPI_Gateway.cfg $BINARIES_SERVERS_DIR/
+ 
+ cp $GATEWAY/Projects/zstack/linux/zstackserverznp/out/ZLSZNP_$PLATFORM_SUBSTRING $BINARIES_SERVERS_DIR/ZLSZNP_$PLATFORM_SUBSTRING
+@@ -268,6 +272,8 @@ cp $GATEWAY/Projects/zstack/linux/versio
+ 
+ if [ $TARGET_PLATFORM == "BEAGLEBONE_BLACK" ]; then
+ 	cp $GATEWAY/Projects/zstack/linux/bbb_usbreset/project/bbb_usbreset.bin $BINARIES_TOOLS_DIR/bbb_usbreset.bin
++elif [ $TARGET_PLATFORM == "CROSS_COMPILE" ]; then
++        cp $GATEWAY/Projects/zstack/linux/bbb_usbreset/project/bbb_usbreset.bin $BINARIES_TOOLS_DIR/bbb_usbreset.bin
+ elif [ $TARGET_PLATFORM == "x86" ]; then
+ 	echo dummy > /dev/null
+ fi
+@@ -295,6 +301,10 @@ else
+         cp $GATEWAY/Projects/zstack/linux/otaserver/ota_sample_images/SampleSwitchRouter_OTA.hex $FIRMWARE_DIR/
+ fi
+ 
++if [ $TARGET_PLATFORM == "CROSS_COMPILE" ]; then
++        exit 0
++fi
++
+ 
+ # *** Create sample app source package ***********************************************************************************
+ 
+@@ -307,7 +317,7 @@ else
+ 		cat $GATEWAY/Projects/zstack/linux/demo/project/actual_specific_project_file_list.txt >> $PKGS_OUTPUT_DIR/actual_specific_project_file_list_all.txt
+ 
+ 		sort -u -V $PKGS_OUTPUT_DIR/actual_specific_project_file_list_all.txt > $PKGS_OUTPUT_DIR/sorted_actual_specific_project_file_list_all.txt
+-		rm $PKGS_OUTPUT_DIR/actual_specific_project_file_list_all.txt
++		#rm $PKGS_OUTPUT_DIR/actual_specific_project_file_list_all.txt
+ 
+ 		export LOCATION=$GATEWAY
+ 		cd $LOCATION
+@@ -324,7 +334,7 @@ else
+ 		ESCAPED_LOCATION=$(echo $LOCATION | sed -e s?/?\\\\\/?g)
+ 		cat $PKGS_OUTPUT_DIR/sorted_actual_specific_project_file_list_all.txt  | grep $ESCAPED_LOCATION | sed -e s?$LOCATION?? | tar -rvf $SAMPLE_APP_SOURCE_PACKAGE.tar -T - > /dev/null
+ 
+-		rm $PKGS_OUTPUT_DIR/sorted_actual_specific_project_file_list_all.txt
++		#rm $PKGS_OUTPUT_DIR/sorted_actual_specific_project_file_list_all.txt
+ 
+ 		cd $PROTOLIB/../../
+ 		tar -hrvf $SAMPLE_APP_SOURCE_PACKAGE.tar protobuf-c-arm/lib/* > /dev/null
+Index: 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/hagateway/Makefile
 ===================================================================
---- 0.1-r0.orig/zigbee-gateway/Source/Projects/tools/LinuxHost/makefile
-+++ 0.1-r0/zigbee-gateway/Source/Projects/tools/LinuxHost/makefile
-@@ -28,6 +28,7 @@ CC_armBeagleBone = arm-linux-gnueabihf-g
- # arm-linux-gnueabihf-gcc is for Ubuntu on BeagleBone Black
- # get it here: eewiki.net/display/linuxonarm/BeagleBone+Black#BeagleBoneBlack-ARMCrossCompiler:GCC
- CC_x86 = gcc
-+CC_CROSS = arm-poky-linux-gnueabi-gcc
- 
- #predefine
- #DEFINES = -DRNP_HOST -D__BIG_DEBUG__
-@@ -39,6 +40,7 @@ DEFINES = -DMRDY_EARLY_FIX -DRNP_HOST -D
- COMPILO_FLAGS_x86 = "-Wall  $(INCLUDES) $(DEFINES)" 
- COMPILO_FLAGS_armBeagleBoard = "-Wall  $(INCLUDES) $(DEFINES) -mcpu=cortex-a8 -march=armv7-a"
- COMPILO_FLAGS_armBeagleBone = "-Wall  $(INCLUDES) $(DEFINES) -mcpu=cortex-a8 -march=armv7-a"
-+CROSS_COMPILO_FLAGS = "-Wall  $(INCLUDES) $(DEFINES) $(CFLAGS)"
- 
- #list of object file to compile for the server
- SERVER_OBJS= \
-@@ -54,7 +56,7 @@ SERVER_OBJS= \
- #by default, do not use the library.
- #PROJ_OBJS=$(SERVER_OBJS)
- 
--.PHONY: all clean lib create_output arch-all-x86 arch-all-armBeagleBoard arch-all-armBeagleBone exec_all_x86 exec_all_armBeagleBoard exec_all_armBeagleBone arch-all-x86 clean_obj clean_obj2 
-+.PHONY: all clean lib create_output arch-all-x86 arch-all-armBeagleBoard arch-all-arm arch-all-armBeagleBone exec_all_x86 exec_all_armBeagleBoard exec_all_armBeagleBone arch-all-x86 clean_obj clean_obj2 
- 
- all: \
- 	create_output \
-@@ -88,6 +90,15 @@ arch-all-armBeagleBone:
- 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep -v /usr/ >actual_specific_project_file_list.txt; fi
- 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep /usr/ >actual_standard_project_file_list.txt; fi
- 
-+
-+arch-all-arm: 
-+	@echo "********************************************************" 
-+	@echo "COMPILING SERVER FOR CROSS COMPILE ARM BEAGLE BONE" 
-+	@$(MAKE) COMPILO=$(CC_CROSS) COMPILO_FLAGS=$(CROSS_COMPILO_FLAGS) exec_all_armBeagleBone
-+	@if [ -n "$(EXTRACT_FILES)" ]; then echo $(MAKEFILE_LIST) | $(EXTRACT_FILES) >> project_file_list.txt; fi
-+	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep -v /usr/ >actual_specific_project_file_list.txt; fi
-+	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep /usr/ >actual_standard_project_file_list.txt; fi 
-+
- arch-all-aragoBeagleBone: 
- 	@echo "********************************************************" 
- 	@echo "COMPILING SERVER FOR ARM BEAGLE BONE" 
-@@ -97,6 +108,7 @@ arch-all-aragoBeagleBone:
- 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep /usr/ >actual_standard_project_file_list.txt; fi
- 
- 
-+
- exec_all_x86: $(OBJS)/NPI_lnx_x86_server
- 
- exec_all_armBeagleBoard: $(OBJS)/NPI_lnx_armBeagleBoard_server
-Index: 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/zstackserverznp/Makefile
-===================================================================
---- 0.1-r0.orig/zigbee-gateway/Source/Projects/zstack/linux/zstackserverznp/Makefile
-+++ 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/zstackserverznp/Makefile
-@@ -26,7 +26,7 @@ PROTOC_LIB_PATH = -L$(PROTOLIB)
- 
- # Compilation tools - make sure to change the directory if its not called ti-sdk-am... 
- ARM_LIB_PATH = -L$(TCLIB)
--CC_arm = arm-linux-gnueabihf-gcc
-+CC_arm = arm-poky-linux-gnueabi-gcc
- CC_armArago = arm-arago-linux-gnueabi-gcc
- CC_x86 = gcc
- CC_arago = arm-arago-linux-gnueabi-gcc
-@@ -71,7 +71,7 @@ DEFINES = -DLINUX_ZNP -DZDO_COORDINATOR
- 
+--- 0.1-r0.orig/zigbee-gateway/Source/Projects/zstack/linux/hagateway/Makefile
++++ 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/hagateway/Makefile
+@@ -87,6 +87,7 @@ DEFINES = -g \
  # Compilation Option
- COMPILO_FLAGS_x86 = "-O0 -g3 -Wall $(INCLUDES) $(DEFINES) -include ../hal/hal_types.h -include f8wConfig.h" 
--COMPILO_FLAGS_arm = "-O0 -g3 -Wall -Wno-unused-but-set-variable $(INCLUDES) $(DEFINES) -include ../hal/hal_types.h -include f8wConfig.h -mcpu=cortex-a8 -march=armv7-a -I $(PROTOC_INC_DIR)"
-+COMPILO_FLAGS_arm = "-O0 -g3 -Wall -Wno-unused-but-set-variable $(INCLUDES) $(DEFINES) -include ../hal/hal_types.h -include f8wConfig.h $(CFLAGS) -I $(PROTOC_INC_DIR)"
+ COMPILO_FLAGS_x86 = "-Wall $(INCLUDES) $(DEFINES) -include ../hal/hal_types.h" 
+ COMPILO_FLAGS_arm = "-Wall $(INCLUDES) $(DEFINES) -include ../hal/hal_types.h -mcpu=cortex-a8 -march=armv7-a -I $(PROTOC_INC_DIR)"
++COMPILO_FLAGS_CROSS = "$(CFLAGS) $(INCLUDES) $(DEFINES) -include ../hal/hal_types.h -I $(PROTOC_INC_DIR)"
  
  # List of object file to compile
  APP_OBJS= \
+@@ -111,9 +112,9 @@ APP_OBJS= \
+ 	$(OBJS)/zcl_ss.o \
+ 	$(OBJS)/zcl.o \
+ 	$(OBJS)/aps_groups.o \
+-	$(OBJS)/zcl_port.o 
++	$(OBJS)/zcl_port.o
+ 
+-.PHONY: all clean lib create_output arch-all-x86 arch-all-arm clean_obj clean_obj2
++.PHONY: all clean lib create_output arch-all-x86 arch-all-arm arch-all-cross clean_obj clean_obj2
+ 
+ all: \
+ 	create_output \
+@@ -142,6 +143,11 @@ arch-all-arago:
+ 	@echo "COMPILING APP FOR ARM ARAGO" 
+ 	@$(MAKE) COMPILO=$(CC_arago) COMPILO_FLAGS=$(COMPILO_FLAGS_arm) exec_app_arm_arago
+ 
++arch-all-cross:
++	@echo "********************************************************"
++	@echo "COMPILING Projects/zstack/linux/hagateway/Makefile APP FOR CROSS"
++	@$(MAKE) COMPILO="$(CC)" COMPILO_FLAGS=$(COMPILO_FLAGS_CROSS) exec_app_arm
++
+ exec_app_x86: $(OBJS)/GATEWAY_SRVR_x86
+ 
+ exec_app_arm: $(OBJS)/GATEWAY_SRVR_arm
+@@ -164,12 +170,12 @@ clean:
+ 	-if test -d $(OBJS); then rm -rf $(OBJS); fi
+ 
+ $(OBJS)/GATEWAY_SRVR_arm: $(APP_OBJS)
+-	@echo "Building target" $@ "..."
+-	@$(COMPILO) -rdynamic -o $@ $(APP_OBJS) $(ARM_LIB_PATH) $(PROTOC_LIB_PATH) $(LIBS_arm) 
++	@echo "test Building target" $@ "..."
++	@$(COMPILO) -rdynamic -o $@ $(APP_OBJS) $(ARM_LIB_PATH) $(PROTOC_LIB_PATH) $(LIBS_arm)
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then echo $(MAKEFILE_LIST) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep -v /usr/ >actual_specific_project_file_list.txt; fi
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep /usr/ >actual_standard_project_file_list.txt; fi
+-	@echo "********************************************************" 
++	@echo "********************************************************"
+ 
+ $(OBJS)/GATEWAY_SRVR_x86: $(APP_OBJS)
+ 	@echo "Building target" $@ "..."
+@@ -177,11 +183,11 @@ $(OBJS)/GATEWAY_SRVR_x86: $(APP_OBJS)
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then echo $(MAKEFILE_LIST) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep -v /usr/ >actual_specific_project_file_list.txt; fi
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep /usr/ >actual_standard_project_file_list.txt; fi
+-	@echo "********************************************************" 
++	@echo "********************************************************"
+ 
+ $(OBJS)/GATEWAY_SRVR_arago: $(APP_OBJS)
+ 	@echo "Building target" $@ "..."
+-	@$(COMPILO) -rdynamic -o $@ $(APP_OBJS) $(ARM_LIB_PATH) $(PROTOC_LIB_PATH) $(LIBS_arm) 
++	@$(COMPILO) -rdynamic -o $@ $(APP_OBJS) $(ARM_LIB_PATH) $(PROTOC_LIB_PATH) $(LIBS_arm)
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then echo $(MAKEFILE_LIST) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep -v /usr/ >actual_specific_project_file_list.txt; fi
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep /usr/ >actual_standard_project_file_list.txt; fi
+@@ -195,42 +201,42 @@ $(OBJS)/zstack.pb-c.o: ../zstackpb/zstac
+ 	
+ $(OBJS)/server.pb-c.o: ../serverpb/server.pb-c.c
+ 	@echo "Compiling" $< "..."
+-	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<	
++	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(COMPILO) -M $< $(COMPILO_FLAGS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+ 
+-$(OBJS)/api_client.o: ../srvwrapper/api_client.c 
++$(OBJS)/api_client.o: ../srvwrapper/api_client.c
+ 	@echo "Compiling" $< "..."
+ 	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(COMPILO) -M $< $(COMPILO_FLAGS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+ 
+-$(OBJS)/main.o: ../srvwrapper/main.c 
++$(OBJS)/main.o: ../srvwrapper/main.c
+ 	@echo "Compiling" $< "..."
+ 	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(COMPILO) -M $< $(COMPILO_FLAGS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+ 
+-$(OBJS)/api_server.o: ../srvwrapper/api_server.c 
++$(OBJS)/api_server.o: ../srvwrapper/api_server.c
+ 	@echo "Compiling" $< "..."
+ 	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(COMPILO) -M $< $(COMPILO_FLAGS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+ 
+-$(OBJS)/configparser.o: ../srvwrapper/configparser.c 
++$(OBJS)/configparser.o: ../srvwrapper/configparser.c
+ 	@echo "Compiling" $< "..."
+ 	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(COMPILO) -M $< $(COMPILO_FLAGS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+-	
+-$(OBJS)/serverep.o: ../srvepconfig/serverep.c 
++
++$(OBJS)/serverep.o: ../srvepconfig/serverep.c
+ 	@echo "Compiling" $< "..."
+ 	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $< 		
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(COMPILO) -M $< $(COMPILO_FLAGS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+ 
+-$(OBJS)/serverdefep.o: ../srvepconfig/serverdefep.c 
++$(OBJS)/serverdefep.o: ../srvepconfig/serverdefep.c
+ 	@echo "Compiling" $< "..."
+ 	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $< 		
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(COMPILO) -M $< $(COMPILO_FLAGS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+ 
+-$(OBJS)/gatewaysrvr.o: gatewaysrvr.c 
++$(OBJS)/gatewaysrvr.o: gatewaysrvr.c
+ 	@echo "Compiling" $< "..."
+-	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $< 
++	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(COMPILO) -M $< $(COMPILO_FLAGS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+ 
+ $(OBJS)/gateway.pb-c.o: gateway.pb-c.c
+@@ -242,17 +248,17 @@ $(OBJS)/zcl_port.o: zcl_port.c
+ 	@echo "Compiling" $< "..."
+ 	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(COMPILO) -M $< $(COMPILO_FLAGS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+-		
++
+ $(OBJS)/zcl_general.o: $(COMPONENTS)/stack/zcl/zcl_general.c
+ 	@echo "Compiling" $< "..."
+ 	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(COMPILO) -M $< $(COMPILO_FLAGS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+-	
++
+ $(OBJS)/zcl_poll_control.o: $(COMPONENTS)/stack/zcl/zcl_poll_control.c
+ 	@echo "Compiling" $< "..."
+-	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<	
++	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(COMPILO) -M $< $(COMPILO_FLAGS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+-	
++
+ $(OBJS)/zcl_lighting.o: $(COMPONENTS)/stack/zcl/zcl_lighting.c
+ 	@echo "Compiling" $< "..."
+ 	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<
+@@ -272,28 +278,27 @@ $(OBJS)/zcl_ss.o: $(COMPONENTS)/stack/zc
+ 	@echo "Compiling" $< "..."
+ 	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<					
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(COMPILO) -M $< $(COMPILO_FLAGS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+-		
++
+ $(OBJS)/zcl.o: $(COMPONENTS)/stack/zcl/zcl.c
+ 	@echo "Compiling" $< "..."
+ 	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<		
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(COMPILO) -M $< $(COMPILO_FLAGS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+-	
+-	
+-$(OBJS)/trace.o: ../srvwrapper/trace.c 
++
++$(OBJS)/trace.o: ../srvwrapper/trace.c
+ 	@echo "Compiling" $< "..."
+ 	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<
+-	
++
+ $(OBJS)/gatewayservices.o: gatewayservices.c
+ 	@echo "Compiling" $< "..."
+-	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<	
++	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(COMPILO) -M $< $(COMPILO_FLAGS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+-	
++
+ $(OBJS)/gatewayp2p.o: ../serverpb/gatewayp2p.c
+ 	@echo "Compiling" $< "..."
+-	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<	
++	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(COMPILO) -M $< $(COMPILO_FLAGS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+ 
+-$(OBJS)/aps_groups.o: aps_groups.c 
++$(OBJS)/aps_groups.o: aps_groups.c
+ 	@echo "Compiling" $< "..."
+-	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $< 
++	@$(COMPILO) -c -o $@ $(COMPILO_FLAGS) $<
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(COMPILO) -M $< $(COMPILO_FLAGS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
 Index: 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/otaserver/Makefile
 ===================================================================
 --- 0.1-r0.orig/zigbee-gateway/Source/Projects/zstack/linux/otaserver/Makefile
 +++ 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/otaserver/Makefile
-@@ -26,7 +26,7 @@ PROTOC_LIB_PATH = -L$(PROTOLIB)
+@@ -74,6 +74,7 @@ DEFINES = -DZCL_STANDALONE \
+ # Compilation Option
+ COMPILO_FLAGS_x86 = " -g -Wall $(INCLUDES) $(DEFINES) -include hal_types.h -include AF.h -include zcl.h -include zcl_ota.h "
+ COMPILO_FLAGS_arm = " -Wall $(INCLUDES) $(DEFINES) -include hal_types.h -include AF.h -include zcl.h -include zcl_ota.h -march=armv7-a -I $(PROTOC_INC_DIR)"
++COMPILO_FLAGS_CROSS = "$(INCLUDES) $(DEFINES) $(CFLAGS) -include hal_types.h -include AF.h -include zcl.h -include zcl_ota.h -I $(PROTOC_INC_DIR)"
  
- # Compilation tools - make sure to change the directory if its not called ti-sdk-am... 
- ARM_LIB_PATH = -L$(TCLIB)
--CC_arm = arm-linux-gnueabihf-gcc
-+CC_arm = arm-poky-linux-gnueabi-gcc
- CC_arago = arm-arago-linux-gnueabi-gcc
- CC_x86 = gcc
+ # List of object file to compile
+ APP_OBJS= \
+@@ -98,7 +99,7 @@ APP_OBJS= \
+ 	$(OBJS)/gatewayp2p.o \
+ 	$(OBJS)/zcl_port.o
  
+-.PHONY: all clean lib create_output arch-all-x86 arch-all-arm clean_obj clean_obj2
++.PHONY: all clean lib create_output arch-all-x86 arch-all-arm arch-all-cross clean_obj clean_obj2
+ 
+ all: create_output clean_obj arch-all-x86 clean_obj2 arch-all-arm
+ 
+@@ -125,6 +126,12 @@ arch-all-arago:
+ 	export ARCH=arm
+ 	@$(MAKE) COMPILO=$(CC_arago) COMPILO_FLAGS=$(COMPILO_FLAGS_arm) exec_app_arago
+ 
++arch-all-cross:
++	@echo "********************************************************"
++	@echo "COMPILING APP FOR ARM"
++	export ARCH=arm
++	@$(MAKE) COMPILO="$(CC)" COMPILO_FLAGS=$(COMPILO_FLAGS_CROSS) exec_app_arm
++
+ exec_app_x86: $(OBJS)/OTA_SRVR_x86
+ 
+ exec_app_arm: $(OBJS)/OTA_SRVR_arm
+Index: 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/demo/project/makefile
+===================================================================
+--- 0.1-r0.orig/zigbee-gateway/Source/Projects/zstack/linux/demo/project/makefile
++++ 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/demo/project/makefile
+@@ -6,12 +6,8 @@ LIBS = -L$(PROTOLIB)
+ 
+ INCLUDE = -I$(PROJ_DIR) -I../engines -I../framework -I$(PROTOINC) -I../../nwkmgr -I../../hagateway -I../../otaserver
+ 
+-
+-#CC=gcc
+-CC=arm-linux-gnueabihf-gcc
+-#CC=arm-arago-linux-gnueabi-gcc
+-
+-CFLAGS= -c -Wall -g -std=gnu99
++FLAGS= -c -Wall -g -std=gnu99 
++COMPILO_FLAGS_CROSS = $(FLAGS) $(CFLAGS) 
+ 
+ VPATH = $(PROJ_DIR):$(PROJ_DIR)/../framework:$(PROJ_DIR)/../engines:$(PROJ_DIR)/../../nwkmgr:$(PROJ_DIR)/../../hagateway:$(PROJ_DIR)/../../otaserver
+ 
+@@ -33,15 +29,15 @@ create_output:
+ 
+ main.bin: $(OBJS)
+ 	@echo "Building $@..."
+-	$(CC) -rdynamic -o $@ $(OBJS) $(LIBS) -lprotobuf-c 
++	@$(CC) -rdynamic -o $@ $(OBJS) $(LIBS) -lprotobuf-c
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then echo $(MAKEFILE_LIST) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep -v /usr/ >actual_specific_project_file_list.txt; fi
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep /usr/ >actual_standard_project_file_list.txt; fi
+ 	mv $(OBJS) $(OBJ_DIR)
+ 
+ %.o: %.c 
+-	@echo "Compiling $< into $@"
+-	$(CC) $(CFLAGS) $(INCLUDE) $(DEFS) $< -o $@
++	@echo "Compiling $< into $@ with $(COMPILO) and flags=$(COMPILO_FLAGS_CROSS)"
++	@$(CC) $(COMPILO_FLAGS_CROSS) $(INCLUDE) $(DEFS) $< -o $@
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(CC) -M $< $(INCLUDE) $(DEFS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+ # rule for cleaning files generated during compilations.
+ clean:
+Index: 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/sbl_tool/project/Makefile
+===================================================================
+--- 0.1-r0.orig/zigbee-gateway/Source/Projects/zstack/linux/sbl_tool/project/Makefile
++++ 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/sbl_tool/project/Makefile
+@@ -1,9 +1,9 @@
+ 
+ SBU_REV= "0.1"
+ 
+-CC=arm-arago-linux-gnueabi-gcc
+ 
+-CFLAGS = -Wall -DVERSION_NUMBER=${SBU_REV}
++FLAGS = -Wall -DVERSION_NUMBER=${SBU_REV}
++CROSS_CFLAGS = -Wall -DVERSION_NUMBER=${SBU_REV} $(FLAGS)
+ OBJECTS = main.o zbSocCmd.o zbSocTransportUart.o
+ LIBS = -L$(TCLIB)../usr/lib/ 
+ #-lrt -lcurses
+@@ -21,7 +21,7 @@ ${APP_NAME}: ${OBJECTS}
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep /usr/ >actual_standard_project_file_list.txt; fi
+ 
+ %.o: ../Source/%.c
+-	${CC} ${CFLAGS} ${INCLUDE} ${DEFS} -c -o $@ $<
++	${CC} ${CROSS_FLAGS} ${INCLUDE} ${DEFS} -c -o $@ $<
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(CC) -M $< $(INCLUDE) $(DEFS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+ 
+ all: ${APP_NAME}
+Index: 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/version_query_minitool/project/Makefile
+===================================================================
+--- 0.1-r0.orig/zigbee-gateway/Source/Projects/zstack/linux/version_query_minitool/project/Makefile
++++ 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/version_query_minitool/project/Makefile
+@@ -1,9 +1,11 @@
+ 
+ SBU_REV= "0.1"
+ 
+-CC=arm-arago-linux-gnueabi-gcc
++#CC=arm-arago-linux-gnueabi-gcc
++
++FLAGS = -Wall -DVERSION_NUMBER=${SBU_REV}
++CROSS_CFLAGS = -Wall -DVERSION_NUMBER=${SBU_REV} $(FLAGS)
+ 
+-CFLAGS = -Wall -DVERSION_NUMBER=${SBU_REV}
+ OBJECTS = main.o zbSocCmd.o zbSocTransportUart.o
+ LIBS = -L$(TCLIB)../usr/lib/ 
+ #-lrt -lcurses
+@@ -15,13 +17,13 @@ APP_NAME=gw_soc_fw_version_query.bin
+ .PHONY: all, clean
+ 
+ ${APP_NAME}: ${OBJECTS}
+-	$(CC) $(CFLAGS) $(OBJECTS) $(LIBS) -o ${APP_NAME}
++	$(CC) $(CROSS_FLAGS) $(OBJECTS) $(LIBS) -o ${APP_NAME}
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then echo $(MAKEFILE_LIST) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep -v /usr/ >actual_specific_project_file_list.txt; fi
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then sort -u -V project_file_list.txt | grep /usr/ >actual_standard_project_file_list.txt; fi
+ 
+ %.o: ../Source/%.c
+-	${CC} ${CFLAGS} ${INCLUDE} ${DEFS} -c -o $@ $<
++	${CC} ${CROSS_FLAGS} ${INCLUDE} ${DEFS} -c -o $@ $<
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(CC) -M $< $(INCLUDE) $(DEFS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+ 
+ all: ${APP_NAME}
+Index: 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/bbb_usbreset/project/makefile
+===================================================================
+--- 0.1-r0.orig/zigbee-gateway/Source/Projects/zstack/linux/bbb_usbreset/project/makefile
++++ 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/bbb_usbreset/project/makefile
+@@ -6,11 +6,12 @@ INCLUDE = -I$(PROJ_DIR)
+ 
+ 
+ #CC=gcc
+-CC=arm-linux-gnueabihf-gcc
++#CC=arm-linux-gnueabihf-gcc
++#CC=arm-poky-linux-gnueabi-gcc
+ #CC=arm-arago-linux-gnueabi-gcc
+ 
+-CFLAGS= -c -Wall -g -std=gnu99
+-
++FLAGS= -c -Wall -g -std=gnu99
++CROSS_CFLAGS = $(FLAGS) $(CFLAGS)
+ VPATH = $(PROJ_DIR)
+ 
+ SRCS = ../source/bbb_usbreset.c
+@@ -38,7 +39,7 @@ bbb_usbreset.bin: $(OBJS)
+ 
+ %.o: %.c 
+ 	@echo "Compiling $< into $@"
+-	$(CC) $(CFLAGS) $(INCLUDE) $(DEFS) $< -o $@
++	$(CC) $(FLAGS) $(INCLUDE) $(DEFS) $< -o $@
+ 	@if [ -n "$(EXTRACT_FILES)" ]; then $(CC) -M $< $(INCLUDE) $(DEFS) | $(EXTRACT_FILES) >> project_file_list.txt; fi
+ 
+ # rule for cleaning files generated during compilations.
+Index: 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/zstackserverznp/Makefile
+===================================================================
+--- 0.1-r0.orig/zigbee-gateway/Source/Projects/zstack/linux/zstackserverznp/Makefile
++++ 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/zstackserverznp/Makefile
+@@ -72,6 +72,7 @@ DEFINES = -DLINUX_ZNP -DZDO_COORDINATOR
+ # Compilation Option
+ COMPILO_FLAGS_x86 = "-O0 -g3 -Wall $(INCLUDES) $(DEFINES) -include ../hal/hal_types.h -include f8wConfig.h" 
+ COMPILO_FLAGS_arm = "-O0 -g3 -Wall -Wno-unused-but-set-variable $(INCLUDES) $(DEFINES) -include ../hal/hal_types.h -include f8wConfig.h -mcpu=cortex-a8 -march=armv7-a -I $(PROTOC_INC_DIR)"
++COMPILO_FLAGS_CROSS = " $(CFLAGS) -include ../hal/hal_types.h -include f8wConfig.h  -I $(PROTOC_INC_DIR) $(INCLUDES) $(DEFINES)"
+ 
+ # List of object file to compile
+ APP_OBJS= \
+@@ -120,6 +121,11 @@ arch-all-arm:
+ 	@echo "COMPILING APP FOR ARM" 
+ 	@$(MAKE) COMPILO=$(CC_arm) COMPILO_FLAGS=$(COMPILO_FLAGS_arm) exec_app_arm
+ 
++arch-all-cross:
++	@echo "********************************************************"
++	@echo "COMPILING APP FOR ARM"
++	@$(MAKE) COMPILO="$(CC)" COMPILO_FLAGS=$(COMPILO_FLAGS_CROSS) exec_app_arm
++
+ arch-all-arago: 
+ 	@echo "********************************************************" 
+ 	@echo "COMPILING APP FOR ARAGO" 
+Index: 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/nwkmgr/Makefile
+===================================================================
+--- 0.1-r0.orig/zigbee-gateway/Source/Projects/zstack/linux/nwkmgr/Makefile
++++ 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/nwkmgr/Makefile
+@@ -74,6 +74,7 @@ DEFINES = -g \
+ # Compilation Option
+ COMPILO_FLAGS_x86 = "-Wall $(INCLUDES) $(DEFINES) -include ../hal/hal_types.h" 
+ COMPILO_FLAGS_arm = "-Wall $(INCLUDES) $(DEFINES) -include ../hal/hal_types.h -mcpu=cortex-a8 -march=armv7-a -I $(PROTOC_INC_DIR)"
++COMPILO_FLAGS_CROSS = "$(CFLAGS) $(INCLUDES) $(DEFINES) -include ../hal/hal_types.h -mcpu=cortex-a8 -march=armv7-a -I $(PROTOC_INC_DIR)"
+ 
+ # List of object file to compile
+ APP_OBJS= \
+@@ -121,6 +122,11 @@ arch-all-arm:
+ 	@echo "COMPILING APP FOR ARM" 
+ 	@$(MAKE) COMPILO=$(CC_arm) COMPILO_FLAGS=$(COMPILO_FLAGS_arm) exec_app_arm
+ 
++arch-all-cross:
++	@echo "********************************************************"
++	@echo "COMPILING APP FOR ARM"
++	@$(MAKE) COMPILO="$(CC)" COMPILO_FLAGS=$(COMPILO_FLAGS_CROSS) exec_app_arm
++
+ arch-all-arago: 
+ 	@echo "********************************************************" 
+ 	@echo "COMPILING APP FOR ARAGO" 
+Index: 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/scripts/hagateway/track_servers
+===================================================================
+--- 0.1-r0.orig/zigbee-gateway/Source/Projects/zstack/linux/scripts/hagateway/track_servers
++++ 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/scripts/hagateway/track_servers
+@@ -25,7 +25,7 @@ echo when we see something missing we wi
+ nameof()
+ {
+ if [ -e /proc/$1/cmdline ]; then
+-	export NAME=`cat /proc/$1/cmdline | awk -F "\0" ' { print $1 }' | head -1 | tr -d "\n"`
++	export NAME=`cat /proc/$1/cmdline | awk -F "\0" ' { print $1 }' | head -n 1 | tr -d "\n"`
+ 	return 1;
+ else
+ 	export NAME="pid $1"
