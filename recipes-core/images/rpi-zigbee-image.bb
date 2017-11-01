@@ -7,5 +7,6 @@ IMAGE_FEATURES += "ssh-server-dropbear splash"
 IMAGE_INSTALL_append = " zigbee-gateway \
 			 mono \
 			 mono-dev \
+			 homegenie \
 "
 
