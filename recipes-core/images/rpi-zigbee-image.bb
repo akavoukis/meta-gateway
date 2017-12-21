@@ -8,5 +8,6 @@ IMAGE_INSTALL_append = " zigbee-gateway \
 			 mono \
 			 mono-dev \
 			 homegenie \
+                         eepromutils \
 "
 
