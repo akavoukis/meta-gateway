@@ -10,4 +10,4 @@ IMAGE_INSTALL_append = " zigbee-gateway \
 			 homegenie \
                          eepromutils \
 "
-
+KERNEL_DEVICETREE += " i2c-gpio.dtbo"
