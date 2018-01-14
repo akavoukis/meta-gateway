@@ -51,4 +51,15 @@
             };
         };
     };
+    fragment@4 {
+        target-path = "/";
+        __overlay__ {
+            pir_driver {
+                compatible = "raspberrypi2,pir_driver";
+                gpios = <&gpio 5 0>;
+            };
+        };
+    };
+
 };
+

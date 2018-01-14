@@ -4,7 +4,8 @@ KERNEL_DEVICETREE += " ../../../../../i2c-gpio.dtbo "
 FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
 SRC_URI += "file://fragment.cfg \
             file://i2c-gpio.dtbo \
-            file://pir_sensor.patch \
+            file://pir_driver.patch \
+            file://pir_driver_dt.patch \
 "
 
 deltacfg = "fragment.cfg"

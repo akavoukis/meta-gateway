@@ -1,0 +1,356 @@
+Index: kernel-source/drivers/char/pir_driver.c
+===================================================================
+--- kernel-source.orig/drivers/char/pir_driver.c
++++ kernel-source/drivers/char/pir_driver.c
+@@ -1,23 +1,3 @@
+-/*
+- * PIR sensor module.
+- *
+- * (c) 2014 Gilles Lasnier <gilles.lasnier@gmail.com>
+- *
+- * This program is free software; you can redistribute it and/or modify it
+- * under the terms and conditions of the GNU General Public License,
+- * version 2, as published by the Free Software Foundation.
+- *
+- * This program is distributed in the hope it will be useful, but WITHOUT
+- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+- * more details.
+- *
+- * You should have received a copy of the GNU General Public License along with
+- * this program; if not, write to the Free Software Foundation, Inc.,
+- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+- *
+- */
+-
+ #include <linux/device.h>
+ #include <linux/fs.h>
+ #include <linux/gpio.h>
+@@ -28,6 +8,9 @@
+ #include <linux/slab.h>
+ #include <linux/spinlock.h>
+ #include <linux/version.h>
++#include <linux/platform_device.h>
++#include <linux/of.h>
++#include <linux/of_gpio.h>
+ 
+ #include <asm/uaccess.h>
+ 
+@@ -39,15 +22,8 @@
+ 
+ 
+ //------------------- Module parameters -------------------------------------
+-
+-static int gpio_trigger = DEFAULT_GPIO_TRIGGER;
+-module_param(gpio_trigger, int, 0644);
+-MODULE_PARM_DESC(gpio_trigger, "Channel Trigger GPIO.");
+-
+ static DECLARE_WAIT_QUEUE_HEAD(read_wait_queue);
+ 
+-
+-
+ // ------------------ Driver private data type ------------------------------
+ 
+ struct pir_sensor_struct {
+@@ -56,7 +32,11 @@ struct pir_sensor_struct {
+     spinlock_t     spinlock;
+ } g_pir_sensor;
+ 
++struct pir_platform_data_struct {
++	unsigned gpio;
++};
+ 
++static int gpio_trigger;
+ 
+ // ------------------ Driver private methods -------------------------------
+ 
+@@ -72,26 +52,23 @@ static int pir_sensor_release (struct in
+   return 0;
+ }
+ 
+-
+-
+ static ssize_t pir_sensor_read(struct file * filp, char * __user buffer, size_t length, loff_t * offset)
+ {
+   	int lg;
+ 	char kbuffer[16];
+ 	unsigned long irqmsk;
+ 	int val;
+-        int ret;
+-	
+-        ret = wait_event_interruptible(read_wait_queue, g_pir_sensor.value != 0);
+-        if (ret < 0) {
+-	  printk(KERN_DEBUG "%s: read() - wake up by signal.\n", THIS_MODULE->name);
+-          return -ERESTARTSYS;
+-        }
++	int ret;
++	ret = wait_event_interruptible(read_wait_queue, g_pir_sensor.value != 0);
++	if (ret < 0) {
++		printk(KERN_DEBUG "%s: read() - wake up by signal.\n", THIS_MODULE->name);
++	return -ERESTARTSYS;
++	}
+ 
+-        spin_lock_irqsave(& (g_pir_sensor.spinlock), irqmsk);
+-        val = g_pir_sensor.value;
++	spin_lock_irqsave(& (g_pir_sensor.spinlock), irqmsk);
++	val = g_pir_sensor.value;
+ 	snprintf(kbuffer, 16, "%d\n", val);
+-        g_pir_sensor.value = 0;
++	g_pir_sensor.value = 0;
+ 	spin_unlock_irqrestore(& (g_pir_sensor.spinlock), irqmsk);
+ 
+ 	lg = strlen(kbuffer);
+@@ -99,27 +76,22 @@ static ssize_t pir_sensor_read(struct fi
+ 	lg -= (*offset);
+ 	if (lg <= 0)
+ 		return 0;
+-
+ 	if (lg > length)
+ 		lg = length;
+-
+ 	if (copy_to_user(buffer, kbuffer + (*offset), lg) != 0)
+ 		return -EFAULT;
+ 
+-        // No more data in the buffer.
+-        memset(kbuffer, 0, sizeof(kbuffer)); 
++	// No more data in the buffer.
++	memset(kbuffer, 0, sizeof(kbuffer));
+ 
+-	// (*offset) += lg; 
+-        (*offset) = 0;
+-	
+-        return lg;
++	// (*offset) += lg;
++	(*offset) = 0;
++	return lg;
+ }
+ 
+-
+-
+ static ssize_t pir_sensor_write(struct file * filp, const char * __user buffer, size_t length, loff_t * offset)
+ {
+-  	int value;
++	int value;
+ 	char * kbuffer;
+ 	unsigned long irqmsk;
+ 
+@@ -135,97 +107,94 @@ static ssize_t pir_sensor_write(struct f
+ 		return -EINVAL;
+ 	}
+ 	kfree(kbuffer);
+-	
+ 	spin_lock_irqsave(& (g_pir_sensor.spinlock), irqmsk);
+ 
+-        // Destructive write (overwrite previous data if any).
++	// Destructive write (overwrite previous data if any).
+ 	g_pir_sensor.value = value;
+-
+ 	spin_unlock_irqrestore(& (g_pir_sensor.spinlock), irqmsk);
+-        
+-        wake_up_interruptible(&read_wait_queue);
+-
+-        printk(KERN_DEBUG "%s: write() has been executed.\n", THIS_MODULE->name);
+-
+-        return length;
++	wake_up_interruptible(&read_wait_queue);
++	printk(KERN_DEBUG "%s: write() has been executed.\n", THIS_MODULE->name);
++	return length;
+ }
+ 
+-
+-
+ static irqreturn_t gpio_trigger_handler(int irq, void * arg)
+ {
+ 	struct pir_sensor_struct * sensor = arg;
+-        struct timeval timestamp;
+-        long int evt_intval;
+-	
++	struct timeval timestamp;
++	long int evt_intval;
+ 	do_gettimeofday(& timestamp);
+ 
+-        evt_intval = MIN_INTERVAL + 1;
++	evt_intval = MIN_INTERVAL + 1;
+ 
+-        if (sensor == NULL)
+-	  return -IRQ_NONE;
++    	if (sensor == NULL)
++		return -IRQ_NONE;
+ 
+ 	if ((sensor->last_timestamp.tv_sec  != 0)
+ 	    || (sensor->last_timestamp.tv_usec != 0)) {
+-	  evt_intval  = timestamp.tv_sec - sensor->last_timestamp.tv_sec;
+-	  evt_intval *= 1000000;  // In microsec.
+-	  evt_intval += timestamp.tv_usec - sensor->last_timestamp.tv_usec;
++		evt_intval  = timestamp.tv_sec - sensor->last_timestamp.tv_sec;
++		evt_intval *= 1000000;  // In microsec.
++		evt_intval += timestamp.tv_usec - sensor->last_timestamp.tv_usec;
+ 	}
+ 
+ 	printk(KERN_DEBUG "%s: interrupt handler interval=%ld.\n", THIS_MODULE->name, evt_intval);
+ 
+ 	if (evt_intval > MIN_INTERVAL) {
+-	  spin_lock(& sensor->spinlock);
+-	  if (gpio_get_value(gpio_trigger)) {
+-	    sensor->value = 1;
+-	  } else
+-	    sensor->value = 0;
+-
+-	  spin_unlock(& sensor->spinlock);
+-
+-	  wake_up_interruptible(&read_wait_queue);
+-	} else {
+-	  printk(KERN_DEBUG "%s: interrupt handler has dropped one event.\n", THIS_MODULE->name);
++		spin_lock(& sensor->spinlock);
++		if (gpio_get_value(gpio_trigger)) {
++			sensor->value = 1;
++		} else
++			sensor->value = 0;
++		spin_unlock(& sensor->spinlock);
++		wake_up_interruptible(&read_wait_queue);
++	}
++	else {
++		printk(KERN_DEBUG "%s: interrupt handler has dropped one event.\n", THIS_MODULE->name);
+ 	}
+-
+ 	sensor->last_timestamp = timestamp;
+-
+ 	printk(KERN_DEBUG "%s: GPIO pin %d (as input) has been triggered.\n", THIS_MODULE->name, gpio_trigger);
+-
+     return IRQ_HANDLED;
+ }
+ 
+-
+-
+ // ------------------ Driver private global data ----------------------------
+ 
+ static struct file_operations pir_sensor_fops = {
+-    .owner   =  THIS_MODULE,
+-    .open    =  pir_sensor_open,
+-    .read    =  pir_sensor_read,
+-    .release =  pir_sensor_release,
+-    .write   =  pir_sensor_write,
++	.owner   =  THIS_MODULE,
++	.open    =  pir_sensor_open,
++	.read    =  pir_sensor_read,
++	.release =  pir_sensor_release,
++	.write   =  pir_sensor_write,
+ };
+ 
+-
+-
+ static struct miscdevice pir_sensor_driver = {
+-        .minor          = MISC_DYNAMIC_MINOR,
++	.minor          = MISC_DYNAMIC_MINOR,
+         .name           = THIS_MODULE->name,
+         .fops           = & pir_sensor_fops,
+ };
+ 
+ 
++// ------------------ Driver probe and exit methods --------------------------
++
++static int pir_get_of_pdata(struct device *dev, struct pir_platform_data_struct *pdata)
++{
++	struct device_node *node = dev->of_node;
++	int ret;
+ 
+-// ------------------ Driver init and exit methods --------------------------
++	if (of_gpio_count(node) != 1) {
++		dev_err(dev, "gpio required");
++		return -ENODEV;
++	}
++	ret = of_get_gpio(node, 0);
++	if (ret < 0)
++		return ret;
++	pdata->gpio = ret;
++	return 0;
++}
+ 
+-static int __init pir_sensor_init (void)
++static int pir_sensor_init(void)
+ {
+ 	int err;
+-
+ 	spin_lock_init(& (g_pir_sensor.spinlock));
+ 	g_pir_sensor.value = 0;
+-	
+ 	// Reserve GPIO TRIGGER.
+ 	err = gpio_request(gpio_trigger, THIS_MODULE->name);
+ 	if (err != 0)
+@@ -236,7 +205,6 @@ static int __init pir_sensor_init (void)
+ 		gpio_free(gpio_trigger);
+ 		return err;
+ 	}
+-
+ 	// Install IRQ handlers.
+ 	err = request_irq(gpio_to_irq(gpio_trigger), gpio_trigger_handler,
+ 	                  IRQF_SHARED | IRQF_TRIGGER_RISING,
+@@ -245,7 +213,6 @@ static int __init pir_sensor_init (void)
+ 		gpio_free(gpio_trigger);
+ 		return err;
+ 	}
+-
+         printk(KERN_INFO "%s: init() - GPIO pin %d has been configured as input.\n", THIS_MODULE->name, gpio_trigger);
+ 
+ 	// Install user space char interface.
+@@ -253,25 +220,53 @@ static int __init pir_sensor_init (void)
+ 	return err;
+ }
+ 
++static int pir_sensor_probe(struct platform_device *pdev)
++{
++	int ret;
++	struct pir_platform_data_struct *platform_data = pdev->dev.platform_data;
++	struct device *dev = &pdev->dev;
++	if (!platform_data) {
++		platform_data = devm_kzalloc(dev, sizeof(struct pir_platform_data_struct), GFP_KERNEL);
++		if (!platform_data)
++			return -ENOMEM;
++		ret = pir_get_of_pdata(dev, platform_data);
++		if (ret)
++			return ret;
++	}
++	gpio_trigger = platform_data->gpio ;
++	ret = pir_sensor_init();
++	return ret;
++}
+ 
+ 
+-void __exit pir_sensor_exit (void)
++static int pir_sensor_remove (struct platform_device *pdev)
+ {
+ 	misc_deregister(& pir_sensor_driver);
+-	
+ 	free_irq(gpio_to_irq(gpio_trigger), & g_pir_sensor);
+ 	gpio_free(gpio_trigger);
+-
+-        printk(KERN_INFO "%s: exit() - successfully unloaded.\n", THIS_MODULE->name);
++	printk(KERN_INFO "%s: exit() - successfully unloaded.\n", THIS_MODULE->name);
++	return 0;
+ }
+ 
++static const struct of_device_id of_pir_match[] = {
++	{ .compatible = "raspberrypi2,pir_driver", },
++	{ }
++};
+ 
+ 
+-module_init(pir_sensor_init);
+-module_exit(pir_sensor_exit);
++MODULE_DEVICE_TABLE(of, of_pir_match);
+ 
++static struct platform_driver pir_driver = {
++	.driver = {
++		   .owner = THIS_MODULE,
++		   .name = "pir_driver",
++		   .of_match_table = of_pir_match,
++		   },
++	.probe = pir_sensor_probe,
++	.remove = pir_sensor_remove,
++};
+ 
++module_platform_driver(pir_driver);
+ 
+ MODULE_LICENSE("GPL");
+ MODULE_AUTHOR("Gilles Lasnier <gilles.lasnier@gmail.com>");
+-
