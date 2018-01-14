@@ -1,0 +1,54 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "brcm,bcm2708";
+    exclusive-use = "13";
+
+    fragment@0 {
+        target = <&leds>;
+        __overlay__ {
+            my_led: myled {
+                label = "hat_led";
+                gpios = <&gpio 21 0>;
+            };
+        };
+    };
+
+    fragment@1 {
+        target-path = "/";
+        __overlay__ {
+            w1: onewire@0 {
+                compatible = "w1-gpio";
+                pinctrl-names = "default";
+                pinctrl-0 = <&w1_pins>;
+                gpios = <&gpio 13 0>;
+                rpi,parasitic-power = <0>;
+                status = "okay";
+            };
+        };
+    };
+
+    fragment@2 {
+        target = <&gpio>;
+        __overlay__ {
+            w1_pins: w1_pins {
+                brcm,pins = <13>;
+                brcm,function = <0>; // in out
+                brcm,pull = <0>; // off off
+            };
+        };
+    };
+
+    fragment@3 {
+        target = <&i2c1>;
+        __overlay__ {
+            tsl2563@39 {
+                compatible = "tsl2563";
+                reg = <0x39>;
+                pinctrl-names = "default";
+                status = "okay";
+            };
+        };
+    };
+};

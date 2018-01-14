@@ -9,5 +9,7 @@ IMAGE_INSTALL_append = " zigbee-gateway \
 			 mono-dev \
 			 homegenie \
                          eepromutils \
+                         copy-personal-files \
 "
 KERNEL_DEVICETREE += " i2c-gpio.dtbo"
+TOOLCHAIN_TARGET_TASK_append = " kernel-devsrc"
