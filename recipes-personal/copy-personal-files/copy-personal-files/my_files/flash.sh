@@ -1,6 +1,6 @@
 #! /bin/sh
 set -e
-if [ ! -d "/boot/overlay" ]; then
+if [ ! -d "/boot/overlays" ]; then
   mount /dev/mmcblk0p1 /boot
 fi
 dd if=/dev/zero ibs=1k count=4 of=blank.eep
