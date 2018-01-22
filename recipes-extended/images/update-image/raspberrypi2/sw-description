@@ -1,0 +1,13 @@
+software =
+{
+        version = "2.0";
+        hardware-compatibility = [ "1.0" ];
+        images: (
+        {
+                            filename = "rpi-zigbee-image-raspberrypi2.ext4.gz";
+                            device = "/dev/mmcblk0p2";
+                            type = "raw";
+                            compressed = true;
+        }
+        );
+}

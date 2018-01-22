@@ -10,6 +10,10 @@ IMAGE_INSTALL_append = " zigbee-gateway \
 			 homegenie \
                          eepromutils \
                          copy-personal-files \
+                         swupdate \
+			 swupdate-www \
+			 swupdate-tools \
 "
 KERNEL_DEVICETREE += " i2c-gpio.dtbo"
 TOOLCHAIN_TARGET_TASK_append = " kernel-devsrc"
+IMAGE_FSTYPES += " ext4.gz"

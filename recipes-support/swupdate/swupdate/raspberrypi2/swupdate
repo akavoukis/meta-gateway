@@ -63,7 +63,7 @@ do_start() {
 			selection="-e stable,copy1"
 		fi
 
-		state=`fw_printenv hawkbit_state | cut -f 2 -d'='`
+		state=`fw_printenv ustate | cut -f 2 -d'='`
 		if [ $state == 1 ];then
 			EXTRA_ARGS="-c 2"
 		else
@@ -72,7 +72,7 @@ do_start() {
 
 		cd /home/root
 		echo "Starting $DESC ..."
-		exec /usr/bin/progress -w -p -r &
+		exec /usr/bin/swupdate-progress -w -p -r &
 		exec $DAEMON -v -H raspberrypi3:1.0 ${selection} -f /etc/swupdate.cfg -u "$EXTRA_ARGS" -w "" &
 		exit 0
 		;;
