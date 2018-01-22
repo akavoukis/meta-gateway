@@ -1,0 +1,13 @@
+[Unit]
+Description=Starts the homegenie service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=60
+ExecStart=/usr/bin/mono /opt/homegenie/HomeGenie.exe
+WorkingDirectory=/opt/homegenie
+
+[Install]
+WantedBy=multi-user.target
+
