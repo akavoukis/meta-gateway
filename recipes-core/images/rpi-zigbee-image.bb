@@ -13,7 +13,10 @@ IMAGE_INSTALL_append = " zigbee-gateway \
                          swupdate \
 			 swupdate-www \
 			 swupdate-tools \
+                         linux-firmware-raspbian-bcm43455 \
 "
+IMAGE_INSTALL_remove = "linux-firmware"
+
 KERNEL_DEVICETREE += " i2c-gpio.dtbo"
 TOOLCHAIN_TARGET_TASK_append = " kernel-devsrc"
 IMAGE_FSTYPES += " ext4.gz"
