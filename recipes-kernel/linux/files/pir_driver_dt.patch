@@ -1,7 +1,17 @@
-Index: kernel-source/drivers/char/pir_driver.c
-===================================================================
---- kernel-source.orig/drivers/char/pir_driver.c
-+++ kernel-source/drivers/char/pir_driver.c
+From 7c80184339edd71fb1a752e3d262439979206f6d Mon Sep 17 00:00:00 2001
+From: invalid_git config <unknown@unknown>
+Date: Fri, 11 May 2018 20:07:20 +0000
+Subject: [PATCH] 
+ ===================================================================
+
+---
+ drivers/char/pir_driver.c | 211 +++++++++++++++++++-------------------
+ 1 file changed, 103 insertions(+), 108 deletions(-)
+
+diff --git a/drivers/char/pir_driver.c b/drivers/char/pir_driver.c
+index 95a9471ce045..73576bd14907 100644
+--- a/drivers/char/pir_driver.c
++++ b/drivers/char/pir_driver.c
 @@ -1,23 +1,3 @@
 -/*
 - * PIR sensor module.
@@ -64,7 +74,7 @@ Index: kernel-source/drivers/char/pir_driver.c
  
  // ------------------ Driver private methods -------------------------------
  
-@@ -72,26 +52,23 @@ static int pir_sensor_release (struct in
+@@ -72,26 +52,23 @@ static int pir_sensor_release (struct inode * ind,  struct file * filp)
    return 0;
  }
  
@@ -83,15 +93,16 @@ Index: kernel-source/drivers/char/pir_driver.c
 -	  printk(KERN_DEBUG "%s: read() - wake up by signal.\n", THIS_MODULE->name);
 -          return -ERESTARTSYS;
 -        }
+-
+-        spin_lock_irqsave(& (g_pir_sensor.spinlock), irqmsk);
+-        val = g_pir_sensor.value;
 +	int ret;
 +	ret = wait_event_interruptible(read_wait_queue, g_pir_sensor.value != 0);
 +	if (ret < 0) {
 +		printk(KERN_DEBUG "%s: read() - wake up by signal.\n", THIS_MODULE->name);
 +	return -ERESTARTSYS;
 +	}
- 
--        spin_lock_irqsave(& (g_pir_sensor.spinlock), irqmsk);
--        val = g_pir_sensor.value;
++
 +	spin_lock_irqsave(& (g_pir_sensor.spinlock), irqmsk);
 +	val = g_pir_sensor.value;
  	snprintf(kbuffer, 16, "%d\n", val);
@@ -100,7 +111,7 @@ Index: kernel-source/drivers/char/pir_driver.c
  	spin_unlock_irqrestore(& (g_pir_sensor.spinlock), irqmsk);
  
  	lg = strlen(kbuffer);
-@@ -99,27 +76,22 @@ static ssize_t pir_sensor_read(struct fi
+@@ -99,27 +76,22 @@ static ssize_t pir_sensor_read(struct file * filp, char * __user buffer, size_t
  	lg -= (*offset);
  	if (lg <= 0)
  		return 0;
@@ -134,7 +145,7 @@ Index: kernel-source/drivers/char/pir_driver.c
  	char * kbuffer;
  	unsigned long irqmsk;
  
-@@ -135,97 +107,94 @@ static ssize_t pir_sensor_write(struct f
+@@ -135,97 +107,94 @@ static ssize_t pir_sensor_write(struct file * filp, const char * __user buffer,
  		return -EINVAL;
  	}
  	kfree(kbuffer);
@@ -248,13 +259,13 @@ Index: kernel-source/drivers/char/pir_driver.c
  
  
 +// ------------------ Driver probe and exit methods --------------------------
-+
+ 
+-// ------------------ Driver init and exit methods --------------------------
 +static int pir_get_of_pdata(struct device *dev, struct pir_platform_data_struct *pdata)
 +{
 +	struct device_node *node = dev->of_node;
 +	int ret;
- 
--// ------------------ Driver init and exit methods --------------------------
++
 +	if (of_gpio_count(node) != 1) {
 +		dev_err(dev, "gpio required");
 +		return -ENODEV;
@@ -354,3 +365,6 @@ Index: kernel-source/drivers/char/pir_driver.c
  MODULE_LICENSE("GPL");
  MODULE_AUTHOR("Gilles Lasnier <gilles.lasnier@gmail.com>");
 -
+-- 
+2.17.0
+
