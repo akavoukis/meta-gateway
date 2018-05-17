@@ -99,7 +99,7 @@ Index: 0.1-r0/zigbee-gateway/Source/scripts/package_builder_bbb
  
  	cd $GATEWAY/Projects/zstack/linux/zstackserverznp/
  	make clean
-@@ -228,25 +232,25 @@ else
+@@ -228,31 +232,32 @@ else
  
  	cd $GATEWAY/Projects/zstack/linux/demo/project
  	make clean
@@ -130,7 +130,14 @@ Index: 0.1-r0/zigbee-gateway/Source/scripts/package_builder_bbb
  cp $GATEWAY/Projects/zstack/linux/collateral/gateway/config/NPI_Gateway.cfg $BINARIES_SERVERS_DIR/
  
  cp $GATEWAY/Projects/zstack/linux/zstackserverznp/out/ZLSZNP_$PLATFORM_SUBSTRING $BINARIES_SERVERS_DIR/ZLSZNP_$PLATFORM_SUBSTRING
-@@ -268,6 +272,8 @@ cp $GATEWAY/Projects/zstack/linux/versio
+ cp $GATEWAY/Projects/zstack/linux/zstackserverznp/config.ini $BINARIES_SERVERS_DIR/
+ 
+ cp $GATEWAY/Projects/zstack/linux/nwkmgr/out/NWKMGR_SRVR_$PLATFORM_SUBSTRING $BINARIES_SERVERS_DIR/
++cp $GATEWAY/Projects/zstack/linux/nwkmgr/nwkmgr_config.ini $BINARIES_SERVERS_DIR/
+ 
+ cp $GATEWAY/Projects/zstack/linux/hagateway/out/GATEWAY_SRVR_$PLATFORM_SUBSTRING $BINARIES_SERVERS_DIR/
+ cp $GATEWAY/Projects/zstack/linux/hagateway/gateway_config.tlg $BINARIES_SERVERS_DIR/
+@@ -268,6 +273,8 @@ cp $GATEWAY/Projects/zstack/linux/versio
  
  if [ $TARGET_PLATFORM == "BEAGLEBONE_BLACK" ]; then
  	cp $GATEWAY/Projects/zstack/linux/bbb_usbreset/project/bbb_usbreset.bin $BINARIES_TOOLS_DIR/bbb_usbreset.bin
@@ -139,7 +146,7 @@ Index: 0.1-r0/zigbee-gateway/Source/scripts/package_builder_bbb
  elif [ $TARGET_PLATFORM == "x86" ]; then
  	echo dummy > /dev/null
  fi
-@@ -295,6 +301,10 @@ else
+@@ -295,6 +302,10 @@ else
          cp $GATEWAY/Projects/zstack/linux/otaserver/ota_sample_images/SampleSwitchRouter_OTA.hex $FIRMWARE_DIR/
  fi
  
@@ -150,7 +157,7 @@ Index: 0.1-r0/zigbee-gateway/Source/scripts/package_builder_bbb
  
  # *** Create sample app source package ***********************************************************************************
  
-@@ -307,7 +317,7 @@ else
+@@ -307,7 +318,7 @@ else
  		cat $GATEWAY/Projects/zstack/linux/demo/project/actual_specific_project_file_list.txt >> $PKGS_OUTPUT_DIR/actual_specific_project_file_list_all.txt
  
  		sort -u -V $PKGS_OUTPUT_DIR/actual_specific_project_file_list_all.txt > $PKGS_OUTPUT_DIR/sorted_actual_specific_project_file_list_all.txt
@@ -159,7 +166,7 @@ Index: 0.1-r0/zigbee-gateway/Source/scripts/package_builder_bbb
  
  		export LOCATION=$GATEWAY
  		cd $LOCATION
-@@ -324,7 +334,7 @@ else
+@@ -324,7 +335,7 @@ else
  		ESCAPED_LOCATION=$(echo $LOCATION | sed -e s?/?\\\\\/?g)
  		cat $PKGS_OUTPUT_DIR/sorted_actual_specific_project_file_list_all.txt  | grep $ESCAPED_LOCATION | sed -e s?$LOCATION?? | tar -rvf $SAMPLE_APP_SOURCE_PACKAGE.tar -T - > /dev/null
  
@@ -568,3 +575,30 @@ Index: 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/scripts/hagateway/trac
  	return 1;
  else
  	export NAME="pid $1"
+Index: 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/scripts/hagateway/zigbeeHAgw
+===================================================================
+--- 0.1-r0.orig/zigbee-gateway/Source/Projects/zstack/linux/scripts/hagateway/zigbeeHAgw
++++ 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/scripts/hagateway/zigbeeHAgw
+@@ -188,7 +188,8 @@ setup_for_arm()
+ 	export GATEWAY_SERVER_CMD="./$GATEWAY_NAME 127.0.0.1:2536 127.0.0.1:2540"
+ 
+ 	export NWKMGR_NAME=NWKMGR_SRVR_arm
+-	export NWKMGR_CMD="./$NWKMGR_NAME 127.0.0.1:2536"
++	export NWKMGR_CONFIG=nwkmgr_config.ini
++	export NWKMGR_CMD="./$NWKMGR_NAME 127.0.0.1:2536 $NWKMGR_CONFIG"
+ 
+ 	export OTA_SERVER_NAME=OTA_SRVR_arm
+ 	export OTA_SERVER_CMD="./$OTA_SERVER_NAME 127.0.0.1:2536 127.0.0.1:2540"
+Index: 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/nwkmgr/nwkmgr_config.ini
+===================================================================
+--- 0.1-r0.orig/zigbee-gateway/Source/Projects/zstack/linux/nwkmgr/nwkmgr_config.ini
++++ 0.1-r0/zigbee-gateway/Source/Projects/zstack/linux/nwkmgr/nwkmgr_config.ini
+@@ -7,7 +7,7 @@
+ 
+ 
+ ; Default Path is current directory "./". Path may be relative or absolute, but must end in a slash.
+-DATABASE_PATH = "../database/"
++DATABASE_PATH = "/boot/"
+ 
+ ; Default gateway_config.tlg path is current directory "./". Path may be relative or absolute, 
+ ; but must end in a slash.
