@@ -1,0 +1,13 @@
+[Unit]
+Description=Bluetooth auto bind
+After=bluetooth.service sys-subsystem-bluetooth-devices-%i.device
+Requires=bluetooth.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=60
+ExecStart=/usr/bin/rfcomm connect %i 30:14:10:17:02:90 1
+
+[Install]
+WantedBy=multi-user.target
