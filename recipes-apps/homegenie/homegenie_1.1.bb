@@ -3,6 +3,7 @@ LICENSE = "GPLv3"
 LIC_FILES_CHKSUM = "file://LICENCE.TXT;md5=8742ca673f11373aa5b26f966c03ef49"
 
 SRC_URI = "https://github.com/genielabs/HomeGenie/releases/download/v1.1-beta.526/homegenie_1_1_beta_r526.tgz \
+           file://homegenie_backup_config.zip;unpack=0 \
            file://homegenie.service \
 "
 
@@ -20,6 +21,8 @@ do_install() {
 	install -d ${D}/opt
 	cp -r ${S} ${D}/opt
 
+        unzip -o ${WORKDIR}/homegenie_backup_config.zip -d ${D}/opt/homegenie
+      
 	unitdir="${D}${systemd_unitdir}/system"
 	install -d -m 0755 ${unitdir}
         install -m 0644 ${WORKDIR}/homegenie.service ${unitdir}
