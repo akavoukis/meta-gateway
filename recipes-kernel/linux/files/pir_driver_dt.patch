@@ -44,7 +44,7 @@ index 95a9471ce045..7639ec423d36 100644
 +#include <linux/of.h>
 +#include <linux/of_gpio.h>
  
- #include <asm/uaccess.h>
+ #include <linux/uaccess.h>
  
 @@ -39,15 +22,8 @@
  

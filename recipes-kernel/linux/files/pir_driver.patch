@@ -64,7 +64,7 @@ Index: kernel-source/drivers/char/pir_driver.c
 +#include <linux/spinlock.h>
 +#include <linux/version.h>
 +
-+#include <asm/uaccess.h>
++#include <linux/uaccess.h>
 +
 +
 +#define DEFAULT_GPIO_TRIGGER  18 // Pin 12 on Raspberry Pi P1 connector.
