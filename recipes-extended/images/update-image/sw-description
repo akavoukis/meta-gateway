@@ -4,7 +4,7 @@ software =
         hardware-compatibility = [ "1.0" ];
         images: (
         {
-                            filename = "rpi-zigbee-image-raspberrypi2.ext4.gz";
+                            filename = "rpi-zigbee-image-raspberrypi3.ext4.gz";
                             device = "/dev/mmcblk0p2";
                             type = "raw";
                             compressed = true;
