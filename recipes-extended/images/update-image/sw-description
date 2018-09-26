@@ -1,13 +1,52 @@
 software =
 {
         version = "2.0";
-        hardware-compatibility = [ "1.0" ];
-        images: (
-        {
-                            filename = "rpi-zigbee-image-raspberrypi3-gateway.ext4.gz";
-                            device = "/dev/mmcblk0p2";
-                            type = "raw";
-                            compressed = true;
-        }
-        );
+		hardware-compatibility: [ "1.0"];
+		stable : {
+			copy1 : {
+				images: (
+					{
+						filename = "rpi-zigbee-image-raspberrypi3-gateway.ext4.gz";
+						type = "raw";
+						compressed = true;
+						device = "/dev/mmcblk0p2";
+					}
+				);
+				scripts: (
+					{
+						filename = "emmcsetup.lua";
+						type = "lua";
+					}
+				);
+                                uboot: (
+                                        {
+                                        	name = "rpipart";
+                                  		value = "2";
+                                        }
+				);
+
+			};
+			copy2 : {
+				images: (
+					{
+						filename = "rpi-zigbee-image-raspberrypi3-gateway.ext4.gz";
+						type = "raw";
+						compressed = true;
+						device = "/dev/mmcblk0p3";
+					}
+				);
+				scripts: (
+					{
+						filename = "emmcsetup.lua";
+						type = "lua";
+					}
+				);
+                                uboot: (
+                                        {
+                                        	name = "rpipart";
+                                  		value = "3";
+                                        }
+				);
+			};
+		};
 }

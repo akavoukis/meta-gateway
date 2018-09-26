@@ -13,8 +13,12 @@ IMAGE_INSTALL_append = " zigbee-gateway \
                          swupdate \
 			 swupdate-www \
 			 swupdate-tools \
+                         u-boot-fw-utils \
+                         lua \
+                         parted \
                          linux-firmware-raspbian-bcm43455 \
 "
+
 IMAGE_INSTALL_remove = "linux-firmware"
 
 KERNEL_DEVICETREE += " i2c-gpio.dtbo"
