@@ -1,0 +1,21 @@
+#! /bin/sh
+rootfs=`mount | grep "on / type" | cut -d':' -f 2 | cut -d' ' -f 1`
+if [ $rootfs == '/dev/mmcblk0p2' ];then
+	selection="--select stable,copy2"
+else
+        selection="--select stable,copy1"
+fi
+
+
+state=`fw_printenv ustate | cut -f 2 -d'='`
+if  [ -z "state" ]; then
+
+    if [ $state == 1 ];then
+              EXTRA_ARGS="--check 2"
+    else
+              EXTRA_ARGS=""
+    fi
+fi
+
+
+echo SWUPDATE_EXTRA_ARGS=\"$selection $EXTRA_ARGS\" > /tmp/swupdate.env
