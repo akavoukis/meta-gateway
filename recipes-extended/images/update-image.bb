@@ -26,5 +26,3 @@ SWUPDATE_IMAGES = " \
 SWUPDATE_IMAGES_FSTYPES[rpi-zigbee-image] = ".ext4.gz"
 
 inherit swupdate
-
-COMPATIBLE = "rpi-zigbee-image"

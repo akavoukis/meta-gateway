@@ -6,6 +6,7 @@ SRC_URI += " \
      file://swupdate.cfg \
      file://swupdate.service \
      file://swupdate-env \
+     file://swupdate-progress.service \
      "
 
 do_install_append() {
