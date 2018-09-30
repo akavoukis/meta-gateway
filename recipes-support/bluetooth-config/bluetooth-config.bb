@@ -11,3 +11,5 @@ do_install () {
 	install -d ${D}${sysconfdir}/udev/rules.d
 	install -m 0644 ${WORKDIR}/10-hci-up.rules ${D}${sysconfdir}/udev/rules.d/
 }
+FILES_${PN} = "${base_libdir}/udev/rules.d"
+
