@@ -20,11 +20,10 @@ software =
 				);
                                 uboot: (
                                         {
-                                        	name = "rpipart";
-                                  		value = "2";
+                                                name = "rpipart";
+                                                value = "2";
                                         }
 				);
-
 			};
 			copy2 : {
 				images: (
@@ -43,10 +42,11 @@ software =
 				);
                                 uboot: (
                                         {
-                                        	name = "rpipart";
-                                  		value = "3";
+                                                name = "rpipart";
+                                                value = "3";
                                         }
 				);
+
 			};
 		};
 }

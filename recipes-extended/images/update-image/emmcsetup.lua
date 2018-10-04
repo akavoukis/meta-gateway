@@ -80,6 +80,34 @@ end
 
 function postinst()
 	local out = "Post installed script called"
+	local new_partition_number = 0
 
+	cmdexec("mount | grep \"on / type\" | cut -d':' -f 2 | cut -d' ' -f 1 > /tmp/mountpoints")
+	f = io.input("/tmp/mountpoints")
+	t=f:read()
+	j=0
+
+	j=string.find(t, "/dev/mmcblk0p2")
+	if (j == 1) then
+		new_partition_number=3
+	end
+	j=0
+	j=string.find(t, "/dev/mmcblk0p3")
+	if (j == 1) then
+		new_partition_number=2
+	end
+
+	print(new_partition_number)
+
+	if (new_partition_number == 0) then
+                out = "mmc partition not found"
+		return false, out
+	end
+
+	cmdexec("mkdir /tmp/new_partition")
+	cmdexec(string.format("mount /dev/mmcblk0p%d /tmp/new_partition", new_partition_number))
+	cmdexec("cp /etc/machine-id /tmp/new_partition/etc/machine-id")
+       	cmdexec("sync")
+       	cmdexec("umount /tmp/new_partition")
 	return true, out
 end
