@@ -17,7 +17,7 @@ IMAGE_INSTALL_append = " zigbee-gateway \
                          lua \
                          parted \
                          linux-firmware-raspbian-bcm43455 \
-                         bluez5 \
+                         bluetooth-config \
 "
 
 IMAGE_INSTALL_remove = "linux-firmware"
