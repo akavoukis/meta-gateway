@@ -107,7 +107,17 @@ function postinst()
 	cmdexec("mkdir /tmp/new_partition")
 	cmdexec(string.format("mount /dev/mmcblk0p%d /tmp/new_partition", new_partition_number))
 	cmdexec("cp /etc/machine-id /tmp/new_partition/etc/machine-id")
-       	cmdexec("sync")
-       	cmdexec("umount /tmp/new_partition")
+
+        local ssh_fingerprint=io.open("/etc/dropbear/dropbear_rsa_host_key", "r")
+        if ssh_fingerprint then
+            ssh_fingerprint:close()
+            out = out .. "/etc/dropbear/dropbear_rsa_host_key found"
+            cmdexec("cp /etc/dropbear/dropbear_rsa_host_key /tmp/new_partition/etc/dropbear/dropbear_rsa_host_key")
+        end
+        out = out .. " exit "
+
+        cmdexec("sync")
+        cmdexec("umount /tmp/new_partition")
+
 	return true, out
 end
