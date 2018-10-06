@@ -9,7 +9,7 @@ LIC_FILES_CHKSUM = "file://${COREBASE}/meta/COPYING.MIT;md5=3da9cfbcb788c80a0384
 
 SRC_URI = "file://10-hci-up.rules \
            file://bt_autoconnect.sh \
-           file://bluetooth-autobind@hci0.service \
+           file://bluetooth-autobind@.service \
 "
 
 RDEPENDS_${PN} = "bluez5 \
@@ -26,14 +26,19 @@ do_install () {
         install -m 0744 ${WORKDIR}/bt_autoconnect.sh ${D}${bindir}/
 
         install -d ${D}${systemd_unitdir}/system
-        install -m 0644 ${WORKDIR}/bluetooth-autobind@hci0.service ${D}${systemd_unitdir}/system
+        install -m 0644 ${WORKDIR}/bluetooth-autobind@.service ${D}${systemd_unitdir}/system/
+
+        install -d ${D}${sysconfdir}/systemd/system/multi-user.target.wants/
+        cd ${D}${sysconfdir}/systemd/system/multi-user.target.wants/
+        ln -sf ${systemd_unitdir}/system/bluetooth-autobind@.service bluetooth-autobind@hci0.service
 }
 
 inherit systemd
 
-SYSTEMD_SERVICE_${PN} = "bluetooth-autobind@hci0.service"
+SYSTEMD_SERVICE_${PN} = "bluetooth-autobind@.service"
 
 FILES_${PN} = "${sysconfdir}/udev/rules.d \
                ${bindir}/* \
+               ${sysconfdir}/systemd/system/* \
 "
 
