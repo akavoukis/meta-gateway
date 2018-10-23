@@ -1,0 +1,24 @@
+Index: git/board/raspberrypi/rpi/rpi.c
+===================================================================
+--- git.orig/board/raspberrypi/rpi/rpi.c
++++ git/board/raspberrypi/rpi/rpi.c
+@@ -252,9 +252,6 @@ static void set_fdtfile(void)
+ {
+ 	const char *fdtfile;
+ 
+-	if (env_get("fdtfile"))
+-		return;
+-
+ 	fdtfile = model->fdtfile;
+ 	env_set("fdtfile", fdtfile);
+ }
+@@ -265,9 +262,6 @@ static void set_fdtfile(void)
+  */
+ static void set_fdt_addr(void)
+ {
+-	if (env_get("fdt_addr"))
+-		return;
+-
+ 	if (fdt_magic(fw_dtb_pointer) != FDT_MAGIC)
+ 		return;
+ 
