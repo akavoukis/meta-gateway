@@ -36,6 +36,7 @@ RPI_KERNEL_DEVICETREE_OVERLAYS ?= " \
     overlays/pi3-miniuart-bt.dtbo \
     overlays/vc4-kms-v3d.dtbo \
     overlays/at86rf233.dtbo \
+    overlays/i2c-gpio.dtbo \
     "
 
 RPI_KERNEL_DEVICETREE ?= " \

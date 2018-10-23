@@ -16,12 +16,11 @@ IMAGE_INSTALL_append = " zigbee-gateway \
                          u-boot-fw-utils \
                          lua \
                          parted \
-                         linux-firmware-raspbian-bcm43455 \
+                         linux-firmware-bcm43455 \
                          bluetooth-config \
 "
 
 IMAGE_INSTALL_remove = "linux-firmware"
 
-KERNEL_DEVICETREE += " i2c-gpio.dtbo"
 TOOLCHAIN_TARGET_TASK_append = " kernel-devsrc"
 IMAGE_FSTYPES += " ext4.gz"
